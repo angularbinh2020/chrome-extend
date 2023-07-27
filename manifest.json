@@ -1,0 +1,23 @@
+{
+    "manifest_version": 3,
+    "name": "Get tiktok videos info",
+    "version": "1.0",
+    "description": "Get tiktok videos info",
+    "icons": {
+        "16": "images/icon-16.png",
+        "32": "images/icon-32.png",
+        "48": "images/icon-48.png",
+        "128": "images/icon-128.png"
+    },
+    "content_scripts": [
+        {
+            "js": [
+                "scripts/xlsx.full.min.js",
+                "scripts/index.js"
+            ],
+            "matches": [
+                "https://www.tiktok.com/*"
+            ]
+        }
+    ]
+}
