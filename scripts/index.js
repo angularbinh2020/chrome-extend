@@ -3,13 +3,8 @@ const CONFIG = {
   TIME_INTERVAL: 300,
   EXPORT_ID: "EXPORT_ID",
   XLSX_SCRIPT_ID: "XLSX_SCRIPT_ID",
-  REG_TAGS_REMOVE: [
-    /<script id="SIGI_STATE" ([^>]*)?>.*?<\/script>/gm,
-    /<img([^>]*)?>.*?<\/img>/gm,
-    /<style([^>]*)?>.*?<\/style>/gm,
-    /<iframe([^>]*)?>.*?<\/iframe>/gm,
-    /<video([^>]*)?>.*?<\/video>/gm,
-  ],
+  LOADING_CONTAINER_ID: "LOADING_CONTAINER_ID",
+  LOADING_PROCESS_ID: "LOADING_PROCESS_ID",
 };
 
 function getVideosUrl() {
@@ -21,17 +16,15 @@ function getVideosUrl() {
   );
 }
 
-function removeAllUnnecessaryTag(htmlText) {
-  let result = htmlText;
-  CONFIG.REG_TAGS_REMOVE.forEach((reg) => {
-    result = result.replace(reg, "");
-  });
-  return result;
+function setLoadingProcess(innerText = "") {
+  const processElement = document.getElementById(CONFIG.LOADING_PROCESS_ID);
+  if (processElement) {
+    processElement.innerText = innerText;
+  }
 }
 
 async function getVideoMeta(url) {
   try {
-    const parser = new DOMParser();
     const res = await fetch(url);
     const rawHtmlText = await res.text();
     const objectString = rawHtmlText
@@ -40,13 +33,21 @@ async function getVideoMeta(url) {
     const appContext = JSON.parse(objectString);
     const videoId = url.split("/").slice(-1);
     const videoInfo = appContext.ItemModule[videoId];
+    const hashtag =
+      videoInfo?.textExtra
+        ?.filter((content) => content.hashtagName)
+        ?.map((content) => "#" + content.hashtagName)
+        ?.join(" ") ?? "";
     return {
-      commentCounts: videoInfo?.stats?.commentCount ?? 0,
-      viewCount: videoInfo?.stats?.diggCount ?? 0,
-      collectCount: videoInfo?.stats?.collectCount ?? 0,
-      shareCounts: videoInfo?.stats?.shareCount ?? 0,
-      hashTags: videoInfo?.textExtra?.map((tag) => tag.hashtagName) || [],
-      url: url,
+      link: url,
+      title: videoInfo?.desc ?? "",
+      view: videoInfo?.stats?.playCount ?? 0,
+      love: videoInfo?.stats?.diggCount ?? 0,
+      comment: videoInfo?.stats?.commentCount ?? 0,
+      save: Number(videoInfo?.stats?.collectCount ?? 0),
+      caption:
+        videoInfo?.contents?.map((content) => content.desc)?.join(" ") ?? "",
+      hashtag,
     };
   } catch (e) {
     return { error: e };
@@ -62,7 +63,9 @@ async function getVideosMeta(urls) {
       if (videoUrl) {
         const video = await getVideoMeta(videoUrl);
         videos.push(video);
-        console.log(`completed: ${videoIndex + 1} / ${urls.length}`);
+        setLoadingProcess(
+          `Tải dữ liệu video: ${videoIndex + 1} / ${urls.length}`
+        );
         videoIndex++;
         getMetaData();
         return;
@@ -73,12 +76,69 @@ async function getVideosMeta(urls) {
   });
 }
 
+function exportToFile(videos) {
+  const aoa = [
+    ["Link", "Title", "View", "Love", "Comment", "Save", "Caption", "Hashtag"],
+  ];
+  videos.forEach((video) => {
+    if (!video.error)
+      aoa.push([
+        video.link,
+        video.title,
+        video.view,
+        video.love,
+        video.comment,
+        video.save,
+        video.caption,
+        video.hashtag,
+      ]);
+  });
+  const timeCreate = new Date().getTime();
+  var ws = XLSX.utils.aoa_to_sheet(aoa);
+  var wb = XLSX.utils.book_new();
+  const profileName = location.pathname.split("@").pop();
+  XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+  XLSX.writeFile(wb, `${profileName}_${timeCreate}.xlsx`);
+}
+
+function showLoadingView() {
+  if (!document.getElementById(CONFIG.LOADING_CONTAINER_ID)) {
+    const loadingContainer = document.createElement("div");
+    const loadingProcess = document.createElement("div");
+    loadingContainer.setAttribute("id", CONFIG.LOADING_CONTAINER_ID);
+    loadingProcess.setAttribute("id", CONFIG.LOADING_PROCESS_ID);
+    loadingContainer.setAttribute(
+      "style",
+      `display: flex;
+    width: 100vw;
+    height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+    justify-content: center;
+    align-items: center;
+    background-color: #0000008c;
+    z-index: 1000;`
+    );
+    loadingProcess.setAttribute("style", "color: white; font-weight: 600;");
+    loadingProcess.innerText = "Đang tải danh sách videos...";
+    loadingContainer.appendChild(loadingProcess);
+    document.body.appendChild(loadingContainer);
+  }
+}
+
+function closeLoadingView() {
+  document.getElementById(CONFIG.LOADING_CONTAINER_ID)?.remove();
+}
+
 async function exportData() {
-  console.log(XLSX);
+  showLoadingView();
   await scrollDownLoadAllVideos();
   const urls = getVideosUrl();
+  setLoadingProcess(`Xuất file excel...`);
   const videos = await getVideosMeta(urls);
-  console.log(videos);
+  exportToFile(videos);
+  closeLoadingView();
 }
 
 async function scrollDownLoadAllVideos() {
@@ -103,17 +163,9 @@ if (!document.getElementById(CONFIG.EXPORT_ID)) {
   exportBtn.innerText = "Export data";
   exportBtn.setAttribute(
     "style",
-    "background-color: black; color: white; padding: 15px 20px; position: fixed; top: 150px; right: 25px;"
+    "background-color: #f72247a3;color: white;position: fixed;top: 150px;right: 25px;cursor: pointer;display: flex;justify-content: center;align-items: center;width: 4rem;height: 4rem;border-radius: 2rem;border: 1px solid;"
   );
   exportBtn.setAttribute("id", CONFIG.EXPORT_ID);
   exportBtn.addEventListener("click", exportData);
   document.body.appendChild(exportBtn);
 }
-
-// if (!document.getElementById(CONFIG.XLSX_SCRIPT_ID)) {
-//   const xlsxScript = document.createElement("script");
-//   xlsxScript.setAttribute("id", CONFIG.XLSX_SCRIPT_ID);
-//   xlsxScript.src =
-//     "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
-//   document.head.appendChild(xlsxScript);
-// }
