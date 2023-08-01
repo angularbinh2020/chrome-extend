@@ -1,8 +1,8 @@
 {
     "manifest_version": 3,
-    "name": "Get tiktok videos info",
+    "name": "Auto checkin",
     "version": "1.0",
-    "description": "Get tiktok videos info",
+    "description": "Auto checkin",
     "icons": {
         "16": "images/icon-16.png",
         "32": "images/icon-32.png",
@@ -12,11 +12,10 @@
     "content_scripts": [
         {
             "js": [
-                "scripts/xlsx.full.min.js",
                 "scripts/index.js"
             ],
             "matches": [
-                "https://www.tiktok.com/*"
+                "https://checkin.mbageas.life/*"
             ]
         }
     ]

@@ -1,10 +1,9 @@
 //@ts-check
 const CONFIG = {
   TIME_INTERVAL: 300,
-  EXPORT_ID: "EXPORT_ID",
-  XLSX_SCRIPT_ID: "XLSX_SCRIPT_ID",
-  LOADING_CONTAINER_ID: "LOADING_CONTAINER_ID",
-  LOADING_PROCESS_ID: "LOADING_PROCESS_ID",
+  RUN_SCRIPT: "RUN_SCRIPT",
+  AUTO_RUN: "AUTO_RUN",
+  AUTO_RUN_TRUE: "1",
 };
 
 function autoAnswers() {
@@ -45,14 +44,44 @@ function answerMultiChoice() {
   document.querySelector('[onclick="answer_question_multi()"]')?.click();
 }
 
-if (!document.getElementById(CONFIG.EXPORT_ID)) {
+const isAnswerScreen = location.href;
+
+const showStartBtn =
+  !document.getElementById(CONFIG.RUN_SCRIPT) &&
+  ["/quizview/start", "/quizview/index"].includes(location.pathname);
+const isIndexPage = location.pathname === "/quizview/index";
+function startRunScript() {
+  if (isIndexPage) {
+    sessionStorage.setItem(CONFIG.AUTO_RUN, "1");
+    document.querySelector('[href="start"]')?.click();
+    return;
+  }
+  autoAnswers();
+}
+
+if (showStartBtn) {
   const exportBtn = document.createElement("button");
-  exportBtn.innerText = "Export data";
+  exportBtn.innerText = "Start";
   exportBtn.setAttribute(
     "style",
     "background-color: #f72247a3;color: white;position: fixed;top: 150px;right: 25px;cursor: pointer;display: flex;justify-content: center;align-items: center;width: 4rem;height: 4rem;border-radius: 2rem;border: 1px solid;"
   );
-  exportBtn.setAttribute("id", CONFIG.EXPORT_ID);
-  exportBtn.addEventListener("click", exportData);
+  exportBtn.setAttribute("id", CONFIG.RUN_SCRIPT);
+  exportBtn.addEventListener("click", startRunScript);
   document.body.appendChild(exportBtn);
 }
+
+const autoRun =
+  sessionStorage.getItem(CONFIG.AUTO_RUN) === CONFIG.AUTO_RUN_TRUE;
+
+if (autoRun) {
+  setTimeout(() => {
+    autoAnswers();
+  }, 3000);
+  document.getElementById(CONFIG.RUN_SCRIPT)?.remove();
+}
+
+if (showStartBtn) {
+  sessionStorage.removeItem(CONFIG.AUTO_RUN);
+}
+console.log("test automation,", new Date().getTime());
